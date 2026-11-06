@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>منصة المحاضرات</title>
 <meta name="theme-color" content="#059669">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="منصة المحاضرات">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<script src="./install.js" defer></script>
 <script>
 if(localStorage.getItem('theme')==='dark'||(!('theme' in localStorage)&&matchMedia('(prefers-color-scheme: dark)').matches))document.documentElement.classList.add('dark');
 </script>
@@ -125,6 +131,13 @@ select{height:40px;padding:0 10px;border:1px solid var(--bd);border-radius:10px;
 </div></header>
 
 <main class="wrap">
+  <section id="install-panel" class="card" style="padding:12px 14px;margin-bottom:12px" hidden>
+    <button id="install-app" class="fbtn" type="button" aria-controls="install-help" aria-expanded="false">إضافة التطبيق إلى الشاشة الرئيسية</button>
+    <div id="install-help" hidden style="padding-top:10px;font-size:14px">
+      <p id="install-instructions"></p>
+      <button id="install-close" class="clr" type="button" style="margin-top:8px">إغلاق</button>
+    </div>
+  </section>
   <div id="loading" class="ld"><div class="sp"></div>جاري تحميل المحاضرات...</div>
   <div id="app" hidden>
     <section id="dash" class="card dash">
@@ -374,3 +387,4 @@ load();
 </script>
 </body>
 </html>
+
