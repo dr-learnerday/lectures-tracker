@@ -264,7 +264,7 @@ document.addEventListener('click', e => {
   else if (a==='day') selDate = v;
   else if (a==='mo') { cal.setDate(1); cal.setMonth(cal.getMonth()+Number(v)); }
   else if (a==='now') { cal = new Date(); selDate = today(); }
-  else if (a==='clr') { ['filter-dept','filter-doc','filter-week','filter-status'].forEach(i=>$(i).value='all'); $('group-by').value='none'; $('search-input').value=''; }
+  else if (a==='clr') { ['filter-dept','filter-doc','filter-week','filter-status'].forEach(i=>$(i).value='all'); $('group-by').value='none'; $('search-input').value=''; fillDocs(); }
   render();
 });
 $('user-group-select').addEventListener('change', e => { localStorage.setItem('user_exam_group', e.target.value); stamp('grp:exam'); queueSync(); render(); });
@@ -285,11 +285,19 @@ async function load() {
     $('loading').innerHTML = `<p style="color:#b42318;font-weight:700;margin-bottom:10px">تعذر الاتصال بقاعدة البيانات.</p><button class="fbtn" style="margin:auto" data-a="retry">إعادة المحاولة</button>`;
   }
 }
+const parts = s => String(s||'').split('، ').filter(Boolean);
+function fillDocs() {            // doctors list follows the chosen department
+  const dep=$('filter-dept').value, sel=$('filter-doc').value, set=new Set();
+  L.forEach(i => { if (dep==='all' || parts(i.department).includes(dep)) parts(i.doctor).forEach(d => { if (d!=="غير محدد") set.add(d); }); });
+  $('filter-doc').innerHTML = '<option value="all">كل الدكاترة</option>' + [...set].sort().map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
+  $('filter-doc').value = set.has(sel) ? sel : 'all';
+}
 function setupFilters() {
   const dp=new Set(), dc=new Set(), wk=new Set();
-  L.forEach(i => { if(i.department && i.department!=="عام") dp.add(i.department); if(i.doctor && i.doctor!=="غير محدد") dc.add(i.doctor); if(i.week) wk.add(String(i.week)); });
+  L.forEach(i => { parts(i.department).forEach(d=>{if(d!=="عام")dp.add(d)}); if(i.week) wk.add(String(i.week)); });
   const fill = (id,set,label) => $(id).innerHTML = `<option value="all">كل ${label}</option>` + [...set].sort().map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
-  fill('filter-dept',dp,'المواد'); fill('filter-doc',dc,'الدكاترة'); fill('filter-week',wk,'الأسابيع');
+  fill('filter-dept',dp,'المواد'); fillDocs(); fill('filter-week',wk,'الأسابيع');
+  $('filter-dept').addEventListener('change',fillDocs);
   ['search-input','filter-dept','filter-doc','filter-week','filter-status','group-by'].forEach(id =>
     $(id).addEventListener(id==='search-input'?'input':'change', render));
 }
@@ -297,7 +305,7 @@ function filtered() {
   const q=$('search-input').value.toLowerCase().trim(), dep=$('filter-dept').value, doc=$('filter-doc').value, w=$('filter-week').value, st=$('filter-status').value;
   return L.filter(i =>
     ((i.title||"")+(i.department||"")+(i.doctor||"")).toLowerCase().includes(q) &&
-    (dep==='all'||i.department===dep) && (doc==='all'||i.doctor===doc) &&
+    (dep==='all'||parts(i.department).includes(dep)) && (doc==='all'||parts(i.doctor).includes(doc)) &&
     (w==='all'||String(i.week)===w) && (st==='all'||Storage.get('status',i.id,'none')===st));
 }
 
