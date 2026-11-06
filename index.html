@@ -121,12 +121,23 @@ select{height:40px;padding:0 10px;border:1px solid var(--bd);border-radius:10px;
 .sp{width:34px;height:34px;margin:0 auto 12px;border:3px solid var(--pr);border-top-color:transparent;border-radius:50%;animation:r .8s linear infinite}
 @keyframes r{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.sq{position:relative}.sq .dt{position:absolute;top:5px;inset-inline-end:5px;width:9px;height:9px;border-radius:50%;background:var(--pr);border:2px solid var(--card)}.sq .dt.off{background:var(--s0)}
+.dlg{border:1px solid var(--bd);border-radius:16px;background:var(--card);color:var(--tx);padding:0;width:min(440px,calc(100% - 24px));max-height:90vh}
+.dlg::backdrop{background:rgba(0,0,0,.5)}
+.dlg>div{padding:18px;display:grid;gap:12px}.dlg h2{font-size:18px}.dlg p{font-size:13.5px;color:var(--mu)}.dlg hr{border:0;border-top:1px solid var(--bd);width:100%}
+.btn{height:42px;padding:0 16px;border-radius:10px;border:1px solid var(--bd);font-weight:700;font-size:14px}
+.btn.p{background:var(--pr);color:var(--on);border-color:var(--pr)}
+.row{display:flex;gap:8px}.row>*{flex:1}
+.code{font:700 20px/1.2 ui-monospace,monospace;letter-spacing:.08em;text-align:center;direction:ltr;padding:14px;border-radius:12px;background:var(--soft);user-select:all}
+.dlg input{height:42px;padding:0 12px;border:1px solid var(--bd);border-radius:10px;background:var(--bg);width:100%;direction:ltr;text-align:center;letter-spacing:.06em;font-size:15px}
+.msg{font-size:13px;font-weight:700;color:var(--mu)}.msg.err{color:#b42318}.msg.ok{color:var(--pr)}
 </style>
 </head>
 <body>
 <header class="top"><div class="wrap bar">
   <div class="brand"><span class="logo" id="logo"></span>منصة المحاضرات</div>
   <nav id="nav" aria-label="التنقل"></nav>
+  <button class="sq" data-a="sy-open" id="syncbtn" aria-label="حفظ ومزامنة التقدم"></button>
   <button class="sq" data-a="theme" id="theme" aria-label="تغيير المظهر"></button>
 </div></header>
 
@@ -191,6 +202,8 @@ select{height:40px;padding:0 10px;border:1px solid var(--bd);border-radius:10px;
   </div>
 </main>
 
+<dialog id="syncdlg" class="dlg"><div id="sbody"></div></dialog>
+<input type="file" id="sfile" accept="application/json,.json" hidden>
 <script>
 const API_URL = "https://lectures-api.memoe3227.workers.dev/";
 const $ = id => document.getElementById(id);
@@ -204,7 +217,7 @@ const I = {
   user:'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', check:'M20 6 9 17l-5-5',
   sun:'M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4',
   moon:'M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z', filter:'M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6',
-  cap:'M22 10 12 5 2 10l10 5zM6 12v5c3 2 9 2 12 0v-5'
+  cap:'M22 10 12 5 2 10l10 5zM6 12v5c3 2 9 2 12 0v-5', cloud:'M18 10h-1.3A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z'
 };
 const ic = k => `<svg class="i" viewBox="0 0 24 24"><path d="${I[k]}"/></svg>`;
 const TABS = [['today','اليوم'],['list','المحاضرات'],['todo','المهام'],['exams','الامتحانات'],['calendar','التقويم']];
@@ -219,7 +232,7 @@ const scheduleOffsets = {
 };
 const Storage = {
   get:(k,id,d)=>localStorage.getItem(`${k}_${id}`)||d,
-  set:(k,id,v)=>localStorage.setItem(`${k}_${id}`,v),
+  set:(k,id,v)=>{localStorage.setItem(`${k}_${id}`,v);stamp(`${k}:${id}`);queueSync()},
   toggle:(k,id)=>{const c=Storage.get(k,id,'false')==='true';Storage.set(k,id,c?'false':'true')}
 };
 let L=[], E=[], view='list', cal=new Date(), selDate=null;
@@ -240,6 +253,7 @@ setThemeIcon();
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-a]'); if (!b) return;
   const {a,id,v} = b.dataset;
+  if (a.startsWith('sy-')) return syncAct(a);
   if (a==='view') return go(v);
   if (a==='theme') { const d=document.documentElement.classList.toggle('dark'); localStorage.setItem('theme',d?'dark':'light'); return setThemeIcon(); }
   if (a==='fp') { $('fpanel').hidden = !$('fpanel').hidden; return; }
@@ -253,7 +267,7 @@ document.addEventListener('click', e => {
   else if (a==='clr') { ['filter-dept','filter-doc','filter-week','filter-status'].forEach(i=>$(i).value='all'); $('group-by').value='none'; $('search-input').value=''; }
   render();
 });
-$('user-group-select').addEventListener('change', e => { localStorage.setItem('user_exam_group', e.target.value); render(); });
+$('user-group-select').addEventListener('change', e => { localStorage.setItem('user_exam_group', e.target.value); stamp('grp:exam'); queueSync(); render(); });
 
 /* ---------- data ---------- */
 async function load() {
@@ -266,7 +280,7 @@ async function load() {
     else if (Array.isArray(data)) L = data;
     selDate = today();
     $('loading').hidden = true; $('app').hidden = false;
-    setupFilters(); go(view);
+    setupFilters(); go(view); doSync();
   } catch (err) {
     $('loading').innerHTML = `<p style="color:#b42318;font-weight:700;margin-bottom:10px">تعذر الاتصال بقاعدة البيانات.</p><button class="fbtn" style="margin:auto" data-a="retry">إعادة المحاولة</button>`;
   }
@@ -383,8 +397,92 @@ function go(v) {
   $('dash').hidden = v==='exams'||v==='calendar';
   scrollTo({top:0}); render();
 }
+/* ---------- backup & sync ---------- */
+const KINDS=/^(status|mcq|todo)_(.+)$/, RANK={none:0,once:1,twice:2,thrice:3}, AL='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const TS=()=>{try{return JSON.parse(localStorage.getItem('sync_ts')||'{}')}catch(e){return {}}};
+function stamp(k){const t=TS();t[k]=Date.now();localStorage.setItem('sync_ts',JSON.stringify(t))}
+const genCode=()=>[...crypto.getRandomValues(new Uint8Array(16))].map(x=>AL[x%32]).join('');
+const fmtCode=c=>c.match(/.{4}/g).join('-'), normCode=s=>s.toUpperCase().replace(/[^A-Z0-9]/g,'');
+const smsg=(t,c)=>{const m=$('smsg');if(m){m.textContent=t;m.className='msg '+(c||'')}};
+const redraw=()=>{if(!$('app').hidden)render()};
+function collect(){
+  const t=TS(),items={};
+  for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i),m=KINDS.exec(k);if(m){const n=m[1]+':'+m[2];items[n]=[localStorage.getItem(k),t[n]||0]}}
+  const g=localStorage.getItem('user_exam_group');if(g)items['grp:exam']=[g,t['grp:exam']||0];
+  return items;
+}
+function applyItems(items,snap){
+  const t=TS();
+  for(const [k,[v,ts]] of Object.entries(items)){
+    if((t[k]||0)!==(snap[k]||0))continue;            // changed while syncing: keep the newer local change
+    const ls=k==='grp:exam'?'user_exam_group':k.replace(':','_');
+    if(localStorage.getItem(ls)!==v)localStorage.setItem(ls,v);
+    t[k]=ts;
+  }
+  localStorage.setItem('sync_ts',JSON.stringify(t));
+  $('user-group-select').value=localStorage.getItem('user_exam_group')||'A1';
+  redraw();
+}
+async function syncCall(mode,code){
+  const snap=TS(),res=await fetch(API_URL+'sync',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code,mode,items:collect()})});
+  const d=await res.json().catch(()=>({}));
+  if(!res.ok)throw Object.assign(new Error(d.error||'sync'),{status:res.status});
+  applyItems(d.items,snap);localStorage.setItem('sync_last',Date.now());
+}
+function dot(ok=true){const d=$('syncdot');d.hidden=!localStorage.getItem('sync_code');d.classList.toggle('off',!ok)}
+async function doSync(){
+  const c=localStorage.getItem('sync_code');if(!c)return;
+  try{await syncCall('sync',c);dot(true)}catch(e){dot(false)}
+}
+let syT;function queueSync(){if(!localStorage.getItem('sync_code'))return;clearTimeout(syT);syT=setTimeout(doSync,4000)}
+function renderSync(msg='',cls=''){
+  const c=localStorage.getItem('sync_code'),l=+localStorage.getItem('sync_last');
+  $('sbody').innerHTML=`<h2>حفظ ومزامنة التقدم</h2>`+(c?
+   `<p>تقدمك محفوظ ومتزامن. أدخل هذا الكود في أي جهاز آخر لنقل تقدمك إليه.</p><div class="code">${fmtCode(c)}</div>
+    <div class="row"><button class="btn p" data-a="sy-copy">نسخ الكود</button><button class="btn" data-a="sy-now">مزامنة الآن</button></div>
+    <p>احتفظ بالكود في مكان آمن، فأي شخص يملكه يستطيع رؤية تقدمك. آخر مزامنة: ${l?new Date(l).toLocaleString('ar-IQ'):'لم تتم بعد'}</p>
+    <button class="btn" data-a="sy-leave">فصل هذا الجهاز</button>`
+  :`<p>تقدمك محفوظ الآن على هذا الجهاز فقط، وقد يضيع إذا مُسحت بيانات المتصفح. أنشئ كوداً شخصياً لحفظه ونقله بين أجهزتك، دون حساب أو كلمة سر.</p>
+    <p>على الآيفون: التطبيق المضاف للشاشة الرئيسية يبدأ بتخزين منفصل عن سفاري، فأنشئ الكود قبل الإضافة ثم أدخله داخل التطبيق.</p>
+    <button class="btn p" data-a="sy-new">إنشاء كود جديد</button>
+    <input id="sin" placeholder="XXXX-XXXX-XXXX-XXXX" autocomplete="off" aria-label="الكود">
+    <button class="btn" data-a="sy-join">لدي كود بالفعل</button>`)
+  +`<hr><p>نسخة احتياطية بملف</p><div class="row"><button class="btn" data-a="sy-exp">تحميل نسخة</button><button class="btn" data-a="sy-imp">استيراد نسخة</button></div>
+    <p class="msg ${cls}" id="smsg" role="status">${msg}</p><button class="btn" data-a="sy-close">إغلاق</button>`;
+}
+async function syncAct(a){
+  const dlg=$('syncdlg');
+  try{
+    if(a==='sy-open'){renderSync();dlg.showModal()}
+    else if(a==='sy-close')dlg.close();
+    else if(a==='sy-new'){smsg('جاري الإنشاء...');const c=genCode();await syncCall('create',c);localStorage.setItem('sync_code',c);dot();renderSync('تم حفظ تقدمك. انسخ الكود واحتفظ به.','ok')}
+    else if(a==='sy-join'){const c=normCode($('sin').value);if(c.length!==16)return smsg('الكود يتكون من 16 حرفاً ورقماً.','err');smsg('جاري الاتصال...');await syncCall('join',c);localStorage.setItem('sync_code',c);dot();renderSync('تم ربط الجهاز ودمج تقدمك.','ok')}
+    else if(a==='sy-now'){smsg('جاري المزامنة...');await syncCall('sync',localStorage.getItem('sync_code'));dot();renderSync('تمت المزامنة.','ok')}
+    else if(a==='sy-leave'){if(confirm('سيبقى تقدمك على هذا الجهاز لكنه سيتوقف عن المزامنة. متابعة؟')){localStorage.removeItem('sync_code');dot();renderSync('تم فصل هذا الجهاز.')}}
+    else if(a==='sy-copy')navigator.clipboard?.writeText(fmtCode(localStorage.getItem('sync_code'))).then(()=>smsg('تم نسخ الكود.','ok'),()=>smsg('انسخ الكود يدوياً بالضغط عليه.','err'));
+    else if(a==='sy-exp'){const u=URL.createObjectURL(new Blob([JSON.stringify({v:1,items:collect()})],{type:'application/json'})),x=document.createElement('a');x.href=u;x.download=`progress-${today()}.json`;x.click();URL.revokeObjectURL(u)}
+    else if(a==='sy-imp')$('sfile').click();
+  }catch(e){dot(false);smsg(e.status===404?'الكود غير موجود. تأكد من كتابته بشكل صحيح.':e.status===409?'تعذر إنشاء الكود، حاول مرة أخرى.':'تعذر الاتصال. تقدمك ما زال محفوظاً على جهازك.','err')}
+}
+$('sfile').addEventListener('change',async e=>{
+  const f=e.target.files[0];e.target.value='';if(!f)return;
+  try{
+    const d=JSON.parse(await f.text()),t=TS();if(!d||typeof d.items!=='object')throw 0;
+    for(const [k,[v,ts]] of Object.entries(d.items)){   // import never lowers progress
+      const m=/^(status|mcq|todo):/.exec(k);if(!m)continue;
+      const ls=k.replace(':','_'),cur=localStorage.getItem(ls)||(m[1]==='status'?'none':'false');
+      const up=m[1]==='status'?(v in RANK&&RANK[v]>RANK[cur]):(v==='true'&&cur!=='true');
+      if(up){localStorage.setItem(ls,v);t[k]=Date.now()}
+    }
+    localStorage.setItem('sync_ts',JSON.stringify(t));redraw();queueSync();smsg('تم استيراد النسخة ودمجها مع تقدمك.','ok');
+  }catch(err){smsg('الملف غير صالح.','err')}
+});
+$('syncdlg').addEventListener('click',e=>{if(e.target===e.currentTarget)e.currentTarget.close()});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&Date.now()-(+localStorage.getItem('sync_last')||0)>60000)doSync()});
+addEventListener('online',doSync);
+$('syncbtn').innerHTML=ic('cloud')+'<i class="dt" id="syncdot" hidden></i>';dot();
+navigator.storage?.persist?.();
 load();
 </script>
 </body>
 </html>
-
