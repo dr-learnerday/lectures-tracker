@@ -67,7 +67,7 @@ main{padding-top:16px}
 .fpanel label{font-size:12px;color:var(--mu);font-weight:700;display:grid;gap:4px}
 select{height:40px;padding:0 10px;border:1px solid var(--bd);border-radius:10px;background:var(--bg);font-size:14px;width:100%}
 .clr{grid-column:1/-1;color:var(--pr);font-weight:700;font-size:13px;justify-self:start}
-@media(min-width:700px){.fpanel{grid-template-columns:repeat(5,1fr)}.clr{grid-column:auto;align-self:end;height:40px}}
+@media(min-width:700px){.fpanel{grid-template-columns:repeat(4,1fr)}.clr{grid-column:auto;align-self:end;height:40px}}
 /* lecture card */
 .list{display:grid;gap:10px}
 .lec{--c:var(--s0);background:var(--card);border:1px solid var(--bd);border-inline-start:4px solid var(--c);border-radius:14px;padding:14px 14px 12px}
@@ -165,9 +165,10 @@ select{height:40px;padding:0 10px;border:1px solid var(--bd);border-radius:10px;
         <button class="fbtn" data-a="fp" id="fbtn"><span id="ficon"></span>فلاتر<em id="fbadge"></em></button>
       </div>
       <div class="fpanel" id="fpanel" hidden>
-        <label>تجميع حسب<select id="group-by"><option value="none">بدون تجميع</option><option value="department">المادة</option><option value="doctor">الدكتور</option><option value="week">الأسبوع</option></select></label>
+        <label>تجميع حسب<select id="group-by"><option value="none">بدون تجميع</option><option value="department">المادة</option><option value="doctor">الدكتور</option><option value="system">السستم</option><option value="week">الأسبوع</option></select></label>
         <label>المادة<select id="filter-dept"></select></label>
         <label>الدكتور<select id="filter-doc"></select></label>
+        <label>السستم<select id="filter-sys"></select></label>
         <label>الأسبوع<select id="filter-week"></select></label>
         <label>الحالة<select id="filter-status"><option value="all">الكل</option><option value="none">ما قاريها</option><option value="once">مرة واحدة</option><option value="twice">مرتين</option><option value="thrice">3 مرات</option></select></label>
         <button class="clr" data-a="clr">مسح الفلاتر</button>
@@ -267,7 +268,7 @@ document.addEventListener('click', e => {
   else if (a==='day') selDate = v;
   else if (a==='mo') { cal.setDate(1); cal.setMonth(cal.getMonth()+Number(v)); }
   else if (a==='now') { cal = new Date(); selDate = today(); }
-  else if (a==='clr') { ['filter-dept','filter-doc','filter-week','filter-status'].forEach(i=>$(i).value='all'); $('group-by').value='none'; $('search-input').value=''; fillDocs(); }
+  else if (a==='clr') { ['filter-dept','filter-doc','filter-sys','filter-week','filter-status'].forEach(i=>$(i).value='all'); $('group-by').value='none'; $('search-input').value=''; fillDocs(); fillSys(); }
   render();
 });
 $('user-group-select').addEventListener('change', e => { localStorage.setItem('user_exam_group', e.target.value); stamp('grp:exam'); queueSync(); render(); });
@@ -295,20 +296,26 @@ function fillDocs() {            // doctors list follows the chosen department
   $('filter-doc').innerHTML = '<option value="all">كل الدكاترة</option>' + [...set].sort().map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
   $('filter-doc').value = set.has(sel) ? sel : 'all';
 }
+function fillSys() {             // systems list follows the chosen department
+  const dep=$('filter-dept').value, sel=$('filter-sys').value, set=new Set();
+  L.forEach(i => { if (dep==='all' || parts(i.department).includes(dep)) parts(i.system).forEach(s => set.add(s)); });
+  $('filter-sys').innerHTML = '<option value="all">كل السستمات</option>' + [...set].sort().map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
+  $('filter-sys').value = set.has(sel) ? sel : 'all';
+}
 function setupFilters() {
   const dp=new Set(), dc=new Set(), wk=new Set();
   L.forEach(i => { parts(i.department).forEach(d=>{if(d!=="عام")dp.add(d)}); if(i.week) wk.add(String(i.week)); });
   const fill = (id,set,label) => $(id).innerHTML = `<option value="all">كل ${label}</option>` + [...set].sort().map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
-  fill('filter-dept',dp,'المواد'); fillDocs(); fill('filter-week',wk,'الأسابيع');
-  $('filter-dept').addEventListener('change',fillDocs);
-  ['search-input','filter-dept','filter-doc','filter-week','filter-status','group-by'].forEach(id =>
+  fill('filter-dept',dp,'المواد'); fillDocs(); fillSys(); fill('filter-week',wk,'الأسابيع');
+  $('filter-dept').addEventListener('change',()=>{fillDocs();fillSys()});
+  ['search-input','filter-dept','filter-doc','filter-sys','filter-week','filter-status','group-by'].forEach(id =>
     $(id).addEventListener(id==='search-input'?'input':'change', render));
 }
 function filtered() {
-  const q=$('search-input').value.toLowerCase().trim(), dep=$('filter-dept').value, doc=$('filter-doc').value, w=$('filter-week').value, st=$('filter-status').value;
+  const q=$('search-input').value.toLowerCase().trim(), dep=$('filter-dept').value, doc=$('filter-doc').value, sys=$('filter-sys').value, w=$('filter-week').value, st=$('filter-status').value;
   return L.filter(i =>
-    ((i.title||"")+(i.department||"")+(i.doctor||"")).toLowerCase().includes(q) &&
-    (dep==='all'||parts(i.department).includes(dep)) && (doc==='all'||parts(i.doctor).includes(doc)) &&
+    ((i.title||"")+(i.department||"")+(i.doctor||"")+(i.system||"")).toLowerCase().includes(q) &&
+    (dep==='all'||parts(i.department).includes(dep)) && (doc==='all'||parts(i.doctor).includes(doc)) && (sys==='all'||parts(i.system).includes(sys)) &&
     (w==='all'||String(i.week)===w) && (st==='all'||Storage.get('status',i.id,'none')===st));
 }
 
@@ -323,6 +330,7 @@ function card(i) {
   return `<article class="lec ${st}">
     <div class="lh"><div class="chips">
       ${i.department?`<span class="chip dep">${esc(i.department)}</span>`:''}
+      ${i.system?`<span class="chip">${esc(i.system)}</span>`:''}
       ${i.week?`<span class="chip">الأسبوع ${esc(i.week)}</span>`:''}
       ${dOf(i)?`<span class="chip">${ic('calendar')}${esc(dOf(i))}</span>`:''}
     </div><button class="ib${td?' on':''}" data-a="todo" data-id="${id}" aria-pressed="${td}" title="تثبيت في المهام">${ic('pin')}</button></div>
@@ -401,7 +409,7 @@ function stats() {
   const pill = (c,l,n) => `<span><i style="--c:${c}"></i>${l} <b>${n}</b></span>`;
   $('pills').innerHTML = pill('var(--s0)','لم تُقرأ',none)+pill('var(--s1)','مرة',once)+pill('var(--s2)','مرتين',twice)+pill('var(--s3)','3 مرات',thrice)+pill('var(--pr)','MCQs',mcq);
   $('n-today').textContent = tc||''; $('n-todo').textContent = todo||'';
-  const n = ['filter-dept','filter-doc','filter-week','filter-status'].filter(i=>$(i).value!=='all').length + ($('group-by').value!=='none');
+  const n = ['filter-dept','filter-doc','filter-sys','filter-week','filter-status'].filter(i=>$(i).value!=='all').length + ($('group-by').value!=='none');
   $('fbadge').textContent = n||'';
 }
 function render() { ({today:rToday,list:rList,todo:rTodo,exams:rExams,calendar:rCal})[view](); stats(); }
