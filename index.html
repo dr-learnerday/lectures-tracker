@@ -338,7 +338,7 @@ const cards = (arr,k,msg) => arr.length ? arr.map(card).join('') : empty(k,msg);
 
 /* ---------- views ---------- */
 function rList() {
-  const f=filtered(), g=$('group-by').value;
+  const f=filtered().sort((a,b)=>(b.date||'').localeCompare(a.date||'')), g=$('group-by').value;   // newest first; undated last
   if (!f.length) return $('list').innerHTML = empty('search','لا توجد نتائج. جرّب تغيير البحث أو مسح الفلاتر.');
   if (g==='none') return $('list').innerHTML = f.map(card).join('');
   const groups = {};
