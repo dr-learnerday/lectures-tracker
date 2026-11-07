@@ -87,6 +87,8 @@ select{height:40px;padding:0 10px;border:1px solid var(--bd);border-radius:10px;
 :root.dark .seg button.on{color:#04210f}
 .mcq{display:flex;align-items:center;justify-content:center;gap:6px;padding:0 14px;height:38px;border:1px solid var(--bd);border-radius:11px;font-size:13px;font-weight:700;color:var(--mu)}
 .mcq.on{background:var(--prs);border-color:var(--pr);color:var(--pr)}
+.tg{display:flex;align-items:center;justify-content:center;gap:6px;padding:0 14px;height:38px;border-radius:11px;background:var(--pr);color:var(--on);font-size:13px;font-weight:700;text-decoration:none}
+.tg:hover{opacity:.9}
 /* groups, empty */
 .gh{position:sticky;top:56px;z-index:5;display:flex;align-items:center;gap:8px;padding:10px 2px;margin-top:10px;background:var(--bg);font-size:14px;font-weight:800}
 .gh em{font-style:normal;font-size:12px;font-weight:500;color:var(--mu);background:var(--soft);padding:0 9px;border-radius:99px}
@@ -217,7 +219,8 @@ const I = {
   user:'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', check:'M20 6 9 17l-5-5',
   sun:'M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4',
   moon:'M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z', filter:'M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6',
-  cap:'M22 10 12 5 2 10l10 5zM6 12v5c3 2 9 2 12 0v-5', cloud:'M18 10h-1.3A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z'
+  cap:'M22 10 12 5 2 10l10 5zM6 12v5c3 2 9 2 12 0v-5', cloud:'M18 10h-1.3A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z',
+  send:'m22 2-7 20-4-9-9-4zM22 2 11 13'
 };
 const ic = k => `<svg class="i" viewBox="0 0 24 24"><path d="${I[k]}"/></svg>`;
 const TABS = [['today','اليوم'],['list','المحاضرات'],['todo','المهام'],['exams','الامتحانات'],['calendar','التقويم']];
@@ -314,6 +317,9 @@ const empty = (k,msg) => `<div class="empty">${ic(k)}<p>${msg}</p></div>`;
 function card(i) {
   const id=esc(i.id), st=Storage.get('status',i.id,'none');
   const mq=Storage.get('mcq',i.id,'false')==='true', td=Storage.get('todo',i.id,'false')==='true';
+  // Telegram MCQs link: shown only when the Notion "MCQs" URL property is filled
+  const link = /^https?:\/\//i.test(i.mcqUrl||'')
+    ? `<a class="tg" href="${esc(i.mcqUrl)}" target="_blank" rel="noopener noreferrer">${ic('send')}MCQs تيليجرام</a>` : '';
   return `<article class="lec ${st}">
     <div class="lh"><div class="chips">
       ${i.department?`<span class="chip dep">${esc(i.department)}</span>`:''}
@@ -324,6 +330,7 @@ function card(i) {
     <p class="doc">${ic('user')}${esc(i.doctor)}</p>
     <div class="act">
       <div class="seg" role="group" aria-label="حالة القراءة">${ST.map(([k,l])=>`<button class="${k===st?'on':''}" data-a="st" data-v="${k}" data-id="${id}">${l}</button>`).join('')}</div>
+      ${link}
       <button class="mcq${mq?' on':''}" data-a="mcq" data-id="${id}" aria-pressed="${mq}">${ic('check')}حل MCQs</button>
     </div></article>`;
 }
