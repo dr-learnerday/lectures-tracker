@@ -80,16 +80,21 @@ select{height:40px;padding:0 10px;border:1px solid var(--bd);border-radius:10px;
 .ib:hover{background:var(--soft)}.ib.on{color:var(--pr)}.ib.on svg{fill:currentColor}
 .lec h3{font-size:17px;font-weight:700;line-height:1.45;margin:8px 0 2px}
 .doc{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--mu)}.doc svg{width:14px;height:14px}
-.act{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--bd)}
-.seg{display:flex;flex:1;min-width:230px;padding:3px;border-radius:11px;background:var(--soft)}
-.seg button{flex:1;padding:7px 4px;border-radius:8px;font-size:12.5px;color:var(--mu);font-weight:500;white-space:nowrap}
+/* card actions: 1) open links  2) reading status + MCQs done */
+.act{display:grid;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--bd)}
+.links{display:flex;gap:8px}
+.tg{flex:1;display:flex;align-items:center;justify-content:center;gap:7px;min-height:42px;padding:0 12px;border-radius:11px;background:var(--pr);color:var(--on);font-size:14px;font-weight:700;text-decoration:none;transition:filter .15s,transform .1s}
+.tg:hover{filter:brightness(1.08)}.tg:active{transform:scale(.98)}
+.tg.alt{background:var(--prs);color:var(--pr)}
+.track{display:flex;flex-wrap:wrap;gap:8px}
+.seg{display:flex;flex:1 1 190px;min-width:0;padding:3px;border-radius:11px;background:var(--soft)}
+.seg button{flex:1;padding:9px 4px;border-radius:8px;font-size:12.5px;color:var(--mu);font-weight:500;white-space:nowrap;transition:background .15s,color .15s}
 .seg button.on{background:var(--c);color:#fff;font-weight:700}
 :root.dark .seg button.on{color:#04210f}
-.mcq{display:flex;align-items:center;justify-content:center;gap:6px;padding:0 14px;height:38px;border:1px solid var(--bd);border-radius:11px;font-size:13px;font-weight:700;color:var(--mu)}
-.mcq.on{background:var(--prs);border-color:var(--pr);color:var(--pr)}
-.tg{display:flex;align-items:center;justify-content:center;gap:6px;padding:0 14px;height:38px;border-radius:11px;background:var(--pr);color:var(--on);font-size:13px;font-weight:700;text-decoration:none}
-.tg:hover{opacity:.9}
-.tg.alt{background:transparent;border:1px solid var(--pr);color:var(--pr)}
+.mcq{flex:1 1 auto;display:flex;align-items:center;justify-content:center;gap:6px;padding:0 12px;min-height:42px;border:1px solid var(--bd);border-radius:11px;font-size:13px;font-weight:700;color:var(--mu);transition:background .15s,border-color .15s,color .15s}
+.mcq svg{opacity:.45}
+.mcq.on{background:var(--prs);border-color:var(--pr);color:var(--pr)}.mcq.on svg{opacity:1}
+@media(min-width:520px){.mcq{flex:0 0 auto}}
 /* groups, empty */
 .gh{position:sticky;top:56px;z-index:5;display:flex;align-items:center;gap:8px;padding:10px 2px;margin-top:10px;background:var(--bg);font-size:14px;font-weight:800}
 .gh em{font-style:normal;font-size:12px;font-weight:500;color:var(--mu);background:var(--soft);padding:0 9px;border-radius:99px}
@@ -226,7 +231,8 @@ const I = {
   send:'m22 2-7 20-4-9-9-4zM22 2 11 13',
   vol:'M11 5 6 9H2v6h4l5 4zM19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07',
   mute:'M11 5 6 9H2v6h4l5 4zM22 9l-6 6M16 9l6 6',
-  book:'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zM22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z'
+  book:'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zM22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z',
+  checks:'m3 17 2 2 4-4M3 7l2 2 4-4M13 6h8M13 12h8M13 18h8'
 };
 const ic = k => `<svg class="i" viewBox="0 0 24 24"><path d="${I[k]}"/></svg>`;
 const TABS = [['today','اليوم'],['list','المحاضرات'],['todo','المهام'],['exams','الامتحانات'],['calendar','التقويم']];
@@ -351,7 +357,7 @@ function card(i) {
   const id=esc(i.id), st=Storage.get('status',i.id,'none');
   const mq=Storage.get('mcq',i.id,'false')==='true', td=Storage.get('todo',i.id,'false')==='true';
   // Telegram links: each button shows only when its Notion URL column is filled
-  const lecLink = tgLink(i.lecUrl,'','book','المحاضرة'), mcqLink = tgLink(i.mcqUrl,' alt','send','MCQs تيليجرام');
+  const lecLink = tgLink(i.lecUrl,'','book','فتح المحاضرة'), mcqLink = tgLink(i.mcqUrl,' alt','checks','فتح الأسئلة');
   return `<article class="lec ${st}">
     <div class="lh"><div class="chips">
       ${i.department?`<span class="chip dep">${esc(i.department)}</span>`:''}
@@ -362,9 +368,9 @@ function card(i) {
     <h3>${esc(i.title)}</h3>
     <p class="doc">${ic('user')}${esc(i.doctor)}</p>
     <div class="act">
-      <div class="seg" role="group" aria-label="حالة القراءة">${ST.map(([k,l])=>`<button class="${k===st?'on':''}" data-a="st" data-v="${k}" data-id="${id}">${l}</button>`).join('')}</div>
-      ${lecLink}${mcqLink}
-      <button class="mcq${mq?' on':''}" data-a="mcq" data-id="${id}" aria-pressed="${mq}">${ic('check')}حل MCQs</button>
+      ${lecLink||mcqLink?`<div class="links">${lecLink}${mcqLink}</div>`:''}
+      <div class="track"><div class="seg" role="group" aria-label="حالة القراءة">${ST.map(([k,l])=>`<button class="${k===st?'on':''}" data-a="st" data-v="${k}" data-id="${id}">${l}</button>`).join('')}</div>
+      <button class="mcq${mq?' on':''}" data-a="mcq" data-id="${id}" aria-pressed="${mq}">${ic('check')}حل MCQs</button></div>
     </div></article>`;
 }
 const cards = (arr,k,msg) => arr.length ? arr.map(card).join('') : empty(k,msg);
